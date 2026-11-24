@@ -1,0 +1,50 @@
+# Проверки без модел: пазачът на критериите, unit тестовете на двата verifier-а
+# и случаите от shared/acceptance.yaml, които не викат модел (AC1, AC4, AC6–AC9).
+name: ci
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Хешът на критериите съвпада
+        run: echo "$(cat shared/acceptance.sha256)  shared/acceptance.yaml" | sha256sum -c -
+      - name: Критериите се сменят само в commit с [acceptance]
+        run: |
+          bad=$(git log --format='%h %s' $(git rev-list --max-parents=0 HEAD)..HEAD -- shared/acceptance.yaml shared/acceptance.sha256 | grep -v '\[acceptance\]' || true)
+          if [ -n "$bad" ]; then echo "СТОП: критериите са сменени без [acceptance]:"; echo "$bad"; exit 1; fi
+
+  impl-a-python:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: impl-a-python } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install playwright pytest langgraph pyyaml openai
+      - run: python -m playwright install --with-deps chromium
+      - name: Unit тестове на verifier-а
+        run: python -m pytest -q unit
+      - name: Случаите без модел
+        run: python run_acceptance.py --tag ci --only AC1 AC4 AC6 AC7 AC8 AC9
+
+  impl-b-ts:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: impl-b-ts } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24', cache: npm, cache-dependency-path: impl-b-ts/package-lock.json }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Unit тестове на verifier-а
+        run: npm run unit
+      - name: Случаите без модел
+        run: npm run acceptance -- --tag ci --only AC1 AC4 AC6 AC7 AC8 AC9

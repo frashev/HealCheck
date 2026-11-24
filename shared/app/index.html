@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="bg">
+<head><meta charset="utf-8"><title>HealCheck демо магазин</title></head>
+<body>
+  <header><button id="open-login" type="button">Вход</button></header>
+
+  <form id="login" hidden>
+    <label>Име <input id="user" name="user"></label>
+    <button id="login-btn" type="submit">Продължи</button>
+  </form>
+
+  <main id="shop" hidden>
+    <p id="hello"></p>
+    <ul>
+      <li>Чаша · 10,00 <button data-testid="add-1" data-price="10" type="button">Добави</button></li>
+      <li>Тефтер · 20,00 <button data-testid="add-2" data-price="20" type="button">Добави</button></li>
+    </ul>
+    <p>Общо: <span id="total">0,00</span></p>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,2 @@
+{"why": "вторият продукт вече не може да се добави (бутонът е махнат)",
+ "edits": [{"file": "index.html", "old": " <button data-testid=\"add-2\" data-price=\"20\" type=\"button\">Добави</button>", "new": ""}]}

@@ -1,0 +1,60 @@
+# HealCheck · критерии за приемане като данни (ред 38, Fowler „Tests as data“).
+# ПРАВИЛО: агентите и двете имплементации (impl-a-python, impl-b-ts) само ЧЕТАТ този файл.
+# Промяна само от Филип; проверка в CI/hook сравнява хеша (виж docs/SPEC.md §6).
+# Всеки ред = една повреда (fixture) в демо приложението + очакван резултат.
+# status: GREEN (без повреда, агентът не се вика) | HEALED (един ремонт, тестът минава, verifier PASS)
+#         | REAL_BUG (истинска грешка: не се лекува, отчет за човек) | STOP (вторият провал спира)
+
+version: 1
+max_repairs: 1
+cases:
+  - id: AC1
+    fixture: none
+    why: базова линия; зелен тест не вика модел
+    expect: { status: GREEN, agent_calls: 0 }
+
+  - id: AC2
+    fixture: rename-id            # #login-btn → #signin-btn
+    why: типичен счупен локатор
+    expect: { status: HEALED, agent_calls: 1, changed_files: [tests/] }
+
+  - id: AC3
+    fixture: change-button-text   # "Вход" → "Влез"
+    why: сменен текст, локатор по роля и име
+    expect: { status: HEALED, agent_calls: 1, changed_files: [tests/] }
+
+  - id: AC4
+    fixture: real-bug-total       # кошницата смята грешна сума
+    why: ремонтът НЕ бива да скрива истинска грешка (QA ядрото)
+    expect: { status: REAL_BUG, assertion_kept: true }
+
+  - id: AC5
+    fixture: remove-feature       # бутонът изчезва изцяло
+    why: няма какво да се лекува; вторият провал спира
+    expect: { status: STOP, agent_calls: 1, reruns: 1 }
+
+  - id: AC6
+    fixture: rename-id
+    agent_override: weaken-assertion   # подменен отговор: агентът маха expect
+    why: ремонт, който отслабва теста, е FAIL
+    expect: { status: STOP, verifier: FAIL, reason: assertion_removed }
+
+  - id: AC7
+    fixture: rename-id
+    agent_override: empty-reply        # празен или повреден отговор
+    why: verifier по подразбиране FAIL (ред 39)
+    expect: { status: STOP, verifier: FAIL, reason: no_patch }
+
+  - id: AC8
+    fixture: rename-id
+    agent_override: edit-outside-tests # агентът пипа app/ или shared/
+    why: ремонтът може да пипа само tests/
+    expect: { status: STOP, verifier: FAIL, reason: forbidden_path }
+
+  - id: AC9
+    fixture: remove-feature
+    agent_override: extra-steps        # подменен отговор: липсващият продукт заменен с повторни кликове
+    why: заобиколен път до същата стойност не е ремонт (случаят от Sonnet, 24.11)
+    expect: { status: STOP, verifier: FAIL, reason: steps_changed, assertion_kept: true }
+
+metrics: [fix_rate, wall_seconds, tokens_in, tokens_out, cost_usd]

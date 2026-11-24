@@ -1,0 +1,2 @@
+{"why": "сменен id на бутона за вход (#login-btn → #signin-btn)",
+ "edits": [{"file": "index.html", "old": "id=\"login-btn\"", "new": "id=\"signin-btn\""}]}
