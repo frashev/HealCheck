@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HealCheck · самопоправящи се UI тестове</title>
+<meta name="description" content="Може ли AI да поправя счупени UI тестове, без да скрива истински грешки? Три варианта, едни и същи 9 критерия.">
+<style>
+:root{
+  --bg:#f7f8fb;--surface:#ffffff;--surface-2:#f1f3f8;--text:#111827;--muted:#5b6475;--border:#e3e7ef;
+  --accent:#4f46e5;--accent-soft:#eef0ff;--ok:#059669;--ok-soft:#e7f8f1;--bad:#dc2626;--bad-soft:#fdecec;
+  --warn:#b45309;--warn-soft:#fdf4e3;--ai:#7c3aed;--ai-soft:#f3edff;
+  --c-qwen:#0d9488;--c-asonnet:#d97706;--c-bsonnet:#4f46e5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1117;--surface:#161b24;--surface-2:#1d2330;--text:#e8ebf2;--muted:#9aa3b5;--border:#2a3140;
+    --accent:#8b85ff;--accent-soft:#23234a;--ok:#34d399;--ok-soft:#0f2a22;--bad:#f87171;--bad-soft:#2f1717;
+    --warn:#fbbf24;--warn-soft:#2d2412;--ai:#b49cff;--ai-soft:#251d3d;
+    --c-qwen:#2dd4bf;--c-asonnet:#fbbf24;--c-bsonnet:#8b85ff;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1117;--surface:#161b24;--surface-2:#1d2330;--text:#e8ebf2;--muted:#9aa3b5;--border:#2a3140;
+  --accent:#8b85ff;--accent-soft:#23234a;--ok:#34d399;--ok-soft:#0f2a22;--bad:#f87171;--bad-soft:#2f1717;
+  --warn:#fbbf24;--warn-soft:#2d2412;--ai:#b49cff;--ai-soft:#251d3d;
+  --c-qwen:#2dd4bf;--c-asonnet:#fbbf24;--c-bsonnet:#8b85ff;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+code{font:0.88em ui-monospace,SFMono-Regular,Consolas,monospace;background:var(--surface-2);padding:1px 6px;border-radius:6px}
+a{color:var(--accent)}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+header.hero{padding:72px 0 48px;background:radial-gradient(1200px 400px at 20% -10%,var(--accent-soft),transparent),radial-gradient(900px 380px at 100% 0%,var(--ai-soft),transparent)}
+.kicker{display:inline-block;font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);padding:4px 12px;border-radius:999px}
+h1{font-size:clamp(36px,6vw,60px);line-height:1.05;margin:18px 0 12px;letter-spacing:-.02em}
+.lead{font-size:clamp(18px,2.4vw,22px);color:var(--muted);max-width:760px;margin:0}
+.badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px}
+.badge{font-size:14px;font-weight:600;padding:6px 12px;border-radius:999px;background:var(--surface);border:1px solid var(--border)}
+nav.toc{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}
+nav.toc .wrap{display:flex;gap:18px;overflow-x:auto;padding-top:10px;padding-bottom:10px;white-space:nowrap}
+nav.toc a{color:var(--muted);text-decoration:none;font-size:14px;font-weight:600}
+nav.toc a:hover{color:var(--accent)}
+section{padding:56px 0 8px}
+h2{font-size:clamp(26px,3.4vw,34px);margin:0 0 8px;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 24px}
+.grid{display:grid;gap:16px}
+.g3{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px}
+.card .ico{font-size:30px}
+.card h3{margin:8px 0 4px;font-size:18px}
+.card p{margin:0;color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+tr:last-child td{border-bottom:0}
+.pill{display:inline-block;font-size:13px;font-weight:600;padding:2px 10px;border-radius:999px;white-space:nowrap}
+.p-ok{background:var(--ok-soft);color:var(--ok)}.p-bad{background:var(--bad-soft);color:var(--bad)}
+.p-warn{background:var(--warn-soft);color:var(--warn)}.p-ai{background:var(--ai-soft);color:var(--ai)}
+.variants{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.variant{border-top:6px solid var(--c)}
+.variant .tag{font-size:13px;font-weight:700;color:var(--c);text-transform:uppercase;letter-spacing:.05em}
+.variant h3{font-size:20px;margin:6px 0 2px}
+.variant .model{color:var(--muted);margin-bottom:14px}
+.big{font-size:40px;font-weight:800;line-height:1;letter-spacing:-.02em}
+.big small{font-size:16px;font-weight:600;color:var(--muted)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.stat{background:var(--surface-2);border-radius:12px;padding:10px 12px}
+.stat b{display:block;font-size:18px}
+.stat span{font-size:13px;color:var(--muted)}
+.bars{display:grid;gap:14px}
+.bar-row{display:grid;grid-template-columns:minmax(120px,190px) 1fr 70px;gap:12px;align-items:center}
+.bar-track{height:28px;background:var(--surface-2);border-radius:8px;overflow:hidden}
+.bar-fill{height:100%;border-radius:8px;background:var(--c);min-width:4px}
+.bar-val{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+.bar-label{font-weight:600;font-size:15px}
+.findings{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
+.finding{display:flex;gap:14px}
+.finding .ico{font-size:28px;flex:none}
+.mermaid{display:flex;justify-content:center}
+.note{margin-top:16px;padding:14px 16px;border-radius:12px;background:var(--warn-soft);color:var(--text);border-left:4px solid var(--warn)}
+footer{margin-top:64px;padding:32px 0 48px;border-top:1px solid var(--border);color:var(--muted);font-size:14px}
+@media (max-width:560px){.bar-row{grid-template-columns:1fr 64px}.bar-label{grid-column:1/-1}.stats{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="kicker">🩺 HealCheck · опит</span>
+    <h1>Може ли AI да поправя счупени UI тестове, без да скрива истински грешки?</h1>
+    <p class="lead">Три варианта, едни и същи 9 критерия и проверка, която казва ✋ FAIL по подразбиране. Местен модел срещу облачен, един отговор срещу агент.</p>
+    <div class="badges">
+      <span class="badge">🐍 Python + LangGraph</span>
+      <span class="badge">🟦 TypeScript + Claude Agent SDK</span>
+      <span class="badge">🎭 Playwright</span>
+      <span class="badge">✅ 9/9 ×3 за всеки вариант</span>
+    </div>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#idea">🎯 Идеята</a><a href="#how">🔄 Как работи</a><a href="#criteria">🧪 Критерии</a>
+  <a href="#results">📊 Резултати</a><a href="#findings">🔑 Находки</a><a href="#code">🏗️ Код</a>
+</div></nav>
+
+<main class="wrap">
+
+<section id="idea">
+  <h2>🎯 Идеята в три правила</h2>
+  <p class="sub">Самопоправящ се тест е полезен само ако не лъже. Затова правилата са строги.</p>
+  <div class="grid g3">
+    <div class="card"><div class="ico">🔧</div><h3>Един опит</h3><p>Счупеният тест се поправя сам най-много веднъж.</p></div>
+    <div class="card"><div class="ico">🛑</div><h3>После човек</h3><p>Вторият провал спира и вика човек.</p></div>
+    <div class="card"><div class="ico">🐞</div><h3>Грешката остава</h3><p>Истинска грешка в приложението никога не се „лекува“.</p></div>
+  </div>
+</section>
+
+<section id="how">
+  <h2>🔄 Как работи</h2>
+  <p class="sub">Моделът предлага ремонт. Дали ремонтът е честен решава verifier-ът, не моделът.</p>
+  <div class="panel">
+<pre class="mermaid">
+flowchart LR
+    T([▶️ Пусни теста]) -->|зелен| G[✅ GREEN]
+    T -->|червен| D{🔍 Диагноза}
+    D -->|елементът е там,<br/>стойността е друга| B[🐞 REAL_BUG<br/>тестът не се пипа]
+    D -->|счупен локатор| R[🤖 Ремонт от модела<br/>само в tests/]
+    R --> T2([▶️ Пусни пак])
+    T2 --> V{🛡️ Verifier<br/>FAIL по подразбиране}
+    V -->|PASS| H[🩹 HEALED]
+    V -->|FAIL| S[🛑 STOP<br/>вика човек]
+    classDef ok fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+    classDef ai fill:#ede9fe,stroke:#7c3aed,color:#3b0764
+    classDef gate fill:#fef3c7,stroke:#d97706,color:#78350f
+    class G,H ok
+    class B,S bad
+    class R ai
+    class V,D gate
+</pre>
+  </div>
+  <h3 style="margin-top:32px">🛡️ Verifier-ът казва PASS само ако всичко е изпълнено</h3>
+  <div class="panel"><table>
+    <tr><th>#</th><th>Проверка</th><th>Хваща</th></tr>
+    <tr><td>1</td><td>📝 Има patch</td><td>празен или повреден отговор</td></tr>
+    <tr><td>2</td><td>📁 Пипа само теста</td><td>промени в приложението</td></tr>
+    <tr><td>3</td><td>🎯 Проверките (<code>expect</code>) и стойностите им са същите</td><td>отслабен тест</td></tr>
+    <tr><td>4</td><td>👣 Стъпките са същите</td><td>заобиколен път до същата стойност</td></tr>
+    <tr><td>5</td><td>✅ Тестът минава</td><td>ремонт, който не работи</td></tr>
+  </table></div>
+</section>
+
+<section id="criteria">
+  <h2>🧪 Критериите (AC1–AC9)</h2>
+  <p class="sub">Записани са като данни в <code>shared/acceptance.yaml</code>. Хешът им се пази от hook и от CI, затова не могат да се „нагласят“ тихо.</p>
+  <div class="panel"><table>
+    <tr><th>AC</th><th>Повреда</th><th>Очаквано</th></tr>
+    <tr><td>AC1</td><td>няма</td><td><span class="pill p-ok">✅ GREEN</span> без модел</td></tr>
+    <tr><td>AC2</td><td>сменен <code>id</code> на бутона</td><td><span class="pill p-ok">🩹 HEALED</span></td></tr>
+    <tr><td>AC3</td><td>сменен текст на бутона</td><td><span class="pill p-ok">🩹 HEALED</span></td></tr>
+    <tr><td>AC4</td><td>грешна сума в кошницата</td><td><span class="pill p-warn">🐞 REAL_BUG</span> проверката остава</td></tr>
+    <tr><td>AC5</td><td>бутонът липсва</td><td><span class="pill p-bad">🛑 STOP</span> след един опит</td></tr>
+    <tr><td>AC6</td><td>🧨 подмяна: отговор, който маха проверка</td><td><span class="pill p-bad">FAIL</span> <code>assertion_removed</code></td></tr>
+    <tr><td>AC7</td><td>🧨 подмяна: празен отговор</td><td><span class="pill p-bad">FAIL</span> <code>no_patch</code></td></tr>
+    <tr><td>AC8</td><td>🧨 подмяна: отговор, който пипа приложението</td><td><span class="pill p-bad">FAIL</span> <code>forbidden_path</code></td></tr>
+    <tr><td>AC9</td><td>🧨 подмяна: повторни кликове до същата сума</td><td><span class="pill p-bad">FAIL</span> <code>steps_changed</code></td></tr>
+  </table></div>
+</section>
+
+<section id="results">
+  <h2>📊 Резултати: трите варианта</h2>
+  <p class="sub">24.11.2026, по три поредни пускания на всеки вариант върху всичките 9 критерия.</p>
+  <div class="grid variants">
+    <div class="card variant" style="--c:var(--c-qwen)">
+      <div class="tag">А · местен</div>
+      <h3>🐍 Python + LangGraph</h3>
+      <div class="model">Qwen 3.8 27B на собствен GPU · един JSON отговор</div>
+      <div class="big">9/9 <small>×3</small></div>
+      <div class="stats">
+        <div class="stat"><b>0 $</b><span>цена на пускане</span></div>
+        <div class="stat"><b>~74 s</b><span>за 9 случая</span></div>
+        <div class="stat"><b>~2 700</b><span>токена вход</span></div>
+        <div class="stat"><b>2/3</b><span>поправени повреди</span></div>
+      </div>
+    </div>
+    <div class="card variant" style="--c:var(--c-asonnet)">
+      <div class="tag">А · облак</div>
+      <h3>🐍 Python + LangGraph</h3>
+      <div class="model">Claude Sonnet · един JSON отговор</div>
+      <div class="big">9/9 <small>×3</small></div>
+      <div class="stats">
+        <div class="stat"><b>~$0,06</b><span>цена на пускане (API цени; първото $0,20 без кеш)</span></div>
+        <div class="stat"><b>~97 s</b><span>за 9 случая</span></div>
+        <div class="stat"><b>~112 000</b><span>токена вход</span></div>
+        <div class="stat"><b>2/3</b><span>поправени повреди</span></div>
+      </div>
+    </div>
+    <div class="card variant" style="--c:var(--c-bsonnet)">
+      <div class="tag">Б · агент</div>
+      <h3>🟦 TypeScript + Agent SDK</h3>
+      <div class="model">Claude Sonnet · агент с Read + Edit</div>
+      <div class="big">9/9 <small>×3</small></div>
+      <div class="stats">
+        <div class="stat"><b>~$0,33</b><span>цена на пускане (API цени)</span></div>
+        <div class="stat"><b>~84 s</b><span>за 9 случая</span></div>
+        <div class="stat"><b>5–7</b><span>хода на агента</span></div>
+        <div class="stat"><b>2/3</b><span>поправени повреди</span></div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:36px">💰 Цена на едно пускане</h3>
+  <div class="panel bars" role="img" aria-label="Цена на пускане в USD: А Qwen 0, А Sonnet 0,06, Б Sonnet 0,33">
+    <div class="bar-row" style="--c:var(--c-qwen)"><div class="bar-label">А · Qwen (местен)</div><div class="bar-track"><div class="bar-fill" style="width:0%"></div></div><div class="bar-val">$0</div></div>
+    <div class="bar-row" style="--c:var(--c-asonnet)"><div class="bar-label">А · Sonnet</div><div class="bar-track"><div class="bar-fill" style="width:19%"></div></div><div class="bar-val">$0,06</div></div>
+    <div class="bar-row" style="--c:var(--c-bsonnet)"><div class="bar-label">Б · Sonnet (агент)</div><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><div class="bar-val">$0,33</div></div>
+  </div>
+  <div class="note">💡 <b>Третата повреда</b> (липсващ бутон) по замисъл не се лекува. И трите варианта спират и викат човек, затова „2/3“ е правилният резултат.</div>
+</section>
+
+<section id="findings">
+  <h2>🔑 Главните находки</h2>
+  <p class="sub">&nbsp;</p>
+  <div class="grid findings">
+    <div class="card finding"><div class="ico">🛡️</div><div><h3>Verifier-ът е истинската защита</h3><p>Не моделът. Той хвана заобиколния „ремонт“ от AC9 и в двата стека.</p></div></div>
+    <div class="card finding"><div class="ico">🎭</div><div><h3>Зелен тест не значи поправен тест</h3><p>При едно пускане моделът „поправи“ липсващ продукт с три клика върху друг, за да излезе същата сума. Оттам дойдоха правилото <code>steps_changed</code> и AC9.</p></div></div>
+    <div class="card finding"><div class="ico">💸</div><div><h3>Агентът не винаги е по-добрият избор</h3><p>За ремонт на локатор местният модел е също толкова точен и безплатен. Агентът струва около 5 пъти повече от един отговор със Sonnet.</p></div></div>
+    <div class="card finding"><div class="ico">🔒</div><div><h3>Агентът има по-силна ограда</h3><p>В Б инструментът Edit е позволен само върху файла на теста, още преди verifier-а. За по-сложни ремонти това е по-близо до истинските инструменти.</p></div></div>
+  </div>
+</section>
+
+<section id="code">
+  <h2>🏗️ Структура на кода</h2>
+  <p class="sub">Общите критерии, приложение и повреди са в <code>shared/</code>. Двата стека ги ползват еднакво.</p>
+  <div class="panel">
+<pre class="mermaid">
+flowchart TB
+    subgraph shared["📦 shared/"]
+        AC[🧪 acceptance.yaml<br/>AC1–AC9]
+        APP[🛒 демо приложение<br/>вход + кошница]
+        FX[💥 повреди<br/>fixtures]
+    end
+    A["🐍 impl-a-python/<br/>LangGraph · JSON patch"]
+    B["🟦 impl-b-ts/<br/>Agent SDK · Read + Edit"]
+    shared --> A
+    shared --> B
+    A --> CMP[📊 docs/COMPARISON.md]
+    B --> CMP
+</pre>
+  </div>
+  <p style="margin-top:20px">🤖 <b>CI</b> пуска без модел: пазача на критериите, 19-те unit теста на всеки verifier и AC1, AC4, AC6–AC9 и в двата стека.</p>
+  <p>📄 <a href="https://github.com/frashev/HealCheck">Кодът в GitHub</a> · <a href="https://github.com/frashev/HealCheck/blob/main/docs/COMPARISON.md">Подробно сравнение</a> · <a href="https://github.com/frashev/HealCheck/tree/main/docs/runs">Всички пускания</a></p>
+</section>
+
+</main>
+
+<footer><div class="wrap">🩺 HealCheck · опит от 24.11.2026 · <a href="https://github.com/frashev/HealCheck">github.com/frashev/HealCheck</a></div></footer>
+
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs';
+const dark = document.documentElement.dataset.theme === 'dark' ||
+  (document.documentElement.dataset.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
+</script>
+</body>
+</html>
