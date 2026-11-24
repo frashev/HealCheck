@@ -1,72 +1,149 @@
-# HealCheck
+# 🩺 HealCheck
 
-Счупен Playwright тест се поправя сам най-много веднъж. Вторият провал спира и вика човек. Истинска грешка в приложението никога не се „лекува“.
+> **Може ли AI да поправя счупени UI тестове, без да скрива истински грешки?**
+> Два стека, едни и същи 9 критерия, проверка с ✋ FAIL по подразбиране.
 
-Две имплементации срещу едни и същи критерии (`shared/acceptance.yaml`, AC1–AC9), повреди и правила на verifier-а:
+![Python](https://img.shields.io/badge/А-Python%20%2B%20LangGraph-3776AB?logo=python&logoColor=white)
+![TypeScript](https://img.shields.io/badge/Б-TypeScript%20%2B%20Agent%20SDK-3178C6?logo=typescript&logoColor=white)
+![Playwright](https://img.shields.io/badge/Playwright-тестове-2EAD33?logo=playwright&logoColor=white)
+![Критерии](https://img.shields.io/badge/критерии-9%2F9%20×3-success)
+![CI](https://github.com/frashev/HealCheck/actions/workflows/ci.yml/badge.svg)
 
-| | Стек | Състояние |
+---
+
+## 🎯 Идеята в три правила
+
+| | Правило |
+|---|---|
+| 🔧 | Счупеният тест се поправя сам **най-много веднъж**. |
+| 🛑 | Вторият провал **спира** и вика човек. |
+| 🐞 | Истинска грешка в приложението **никога** не се „лекува“. |
+
+---
+
+## 🔄 Как работи
+
+```mermaid
+flowchart LR
+    T([▶️ Пусни теста]) -->|зелен| G[✅ GREEN]
+    T -->|червен| D{🔍 Диагноза}
+    D -->|елементът е там,<br/>стойността е друга| B[🐞 REAL_BUG<br/>тестът не се пипа]
+    D -->|счупен локатор| R[🤖 Ремонт от модела<br/>само в tests/]
+    R --> T2([▶️ Пусни пак])
+    T2 --> V{🛡️ Verifier<br/>FAIL по подразбиране}
+    V -->|PASS| H[🩹 HEALED]
+    V -->|FAIL| S[🛑 STOP<br/>вика човек]
+
+    classDef ok fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+    classDef ai fill:#ede9fe,stroke:#7c3aed,color:#3b0764
+    classDef gate fill:#fef3c7,stroke:#d97706,color:#78350f
+    class G,H ok
+    class B,S bad
+    class R ai
+    class V,D gate
+```
+
+### 🛡️ Кога verifier-ът казва PASS
+
+Само когато **всичко** е изпълнено. Иначе казва FAIL.
+
+| # | Проверка | Хваща |
 |---|---|---|
-| **А** `impl-a-python/` | Python, Playwright, LangGraph, местен Qwen | v1: 9 от 9 в три поредни пускания с Qwen (24.11.2026) |
-| **Б** `impl-b-ts/` | TypeScript, Playwright Test, Claude Agent SDK | v1: 9 от 9 в три поредни пускания със Sonnet (24.11.2026) |
+| 1 | 📝 Има patch | празен или повреден отговор |
+| 2 | 📁 Пипа само теста | промени в приложението |
+| 3 | 🎯 Проверките (`expect`) и стойностите им са същите | отслабен тест |
+| 4 | 👣 Стъпките са същите | заобиколен път до същата стойност |
+| 5 | ✅ Тестът минава | ремонт, който не работи |
 
-## Case study: резултати (24.11.2026)
+---
 
-И двете имплементации минават всичките 9 критерия за приемане в три поредни пускания. Всяка поправя 2 от 3 повреди. Третата повреда (липсващ бутон) по замисъл не се лекува, а спира и вика човек. Истинската грешка в сумата не се „поправя“ и в двете.
+## 🧪 Критериите (AC1–AC9)
 
-| | А · Python + LangGraph | Б · TypeScript + Claude Agent SDK |
+Записани са като данни в `shared/acceptance.yaml`. Хешът им се пази от hook и от CI.
+
+| AC | Повреда | Очаквано | |
+|---|---|---|---|
+| AC1 | няма | ✅ GREEN, без модел | 🟢 |
+| AC2 | сменен `id` на бутона | 🩹 HEALED | 🔧 |
+| AC3 | сменен текст на бутона | 🩹 HEALED | 🔧 |
+| AC4 | грешна сума в кошницата | 🐞 REAL_BUG, проверката остава | 🐞 |
+| AC5 | бутонът липсва | 🛑 STOP след един опит | 🛑 |
+| AC6 | подмяна: отговор, който маха проверка | 🛑 FAIL `assertion_removed` | 🧨 |
+| AC7 | подмяна: празен отговор | 🛑 FAIL `no_patch` | 🧨 |
+| AC8 | подмяна: отговор, който пипа приложението | 🛑 FAIL `forbidden_path` | 🧨 |
+| AC9 | подмяна: повторни кликове до същата сума | 🛑 FAIL `steps_changed` | 🧨 |
+
+---
+
+## 📊 Резултати (24.11.2026)
+
+| | 🐍 А · Python + LangGraph | 🟦 Б · TypeScript + Claude Agent SDK |
 |---|---|---|
-| Модел | Qwen 3.8 27B (местен) | Claude Sonnet |
-| Критерии (AC1–AC9) | 9/9 ×3 | 9/9 ×3 |
-| Поправени повреди | 2/3 | 2/3 |
-| Време за всички случаи | ~74 s | ~84 s |
-| Цена на пускане | 0 | ~$0,33 по API цени |
+| 🧠 Модел | Qwen 3.8 27B, **местен** | Claude Sonnet |
+| 🧪 Критерии | ✅ **9/9 ×3** | ✅ **9/9 ×3** |
+| 🔧 Поправени повреди | 2/3 | 2/3 |
+| ⏱️ Време за 9 случая | ~74 s | ~84 s |
+| 🔁 Ходове на модела | 1 отговор | 5–7 хода (Read → Edit) |
+| 💰 Цена на пускане | **0** | ~$0,33 по API цени |
 
-Проверката след ремонта казва FAIL по подразбиране и хвана и заобиколния „ремонт“ от AC9 (повторни кликове до същата сума) в двата стека. Б струва около 5 пъти повече от А, пуснато със Sonnet, заради агентния цикъл (5–7 хода вместо един отговор). Подробностите са в `docs/COMPARISON.md`.
-
-## Как работи А
-
-```
-run_test ─ зелено ─────────────────────────────► GREEN
-   └ червено → diagnose ─ стойността е друга ──► REAL_BUG (тестът не се пипа)
-                  └ локатор → propose (модел) → apply → rerun → verify ─ PASS ► HEALED
-                                                                     └ FAIL ► STOP
+```mermaid
+xychart-beta
+    title "Цена на пускане, USD по API цени"
+    x-axis ["А · Qwen (местен)", "А · Sonnet (1 отговор)", "Б · Sonnet (агент)"]
+    y-axis "USD" 0 --> 0.4
+    bar [0, 0.07, 0.33]
 ```
 
-Verifier-ът е детерминистичен и казва FAIL по подразбиране. PASS има само ако:
-- има patch;
-- той пипа само `tests/`;
-- проверките не са махнати и стойностите им не са сменени;
-- стъпките на теста са същите;
-- тестът минава.
+> 💡 **Третата повреда** (липсващ бутон) по замисъл не се лекува. И двата стека спират и викат човек.
 
-## Пускане
+### 🔑 Главните находки
 
+- 🛡️ **Verifier-ът е истинската защита, не моделът.** Той хвана заобиколния „ремонт“ от AC9 и в двата стека.
+- 🎭 **Зелен тест не значи поправен тест.** При едно пускане моделът „поправи“ липсващ продукт с три клика върху друг, за да излезе същата сума. Оттам дойдоха правилото `steps_changed` и AC9.
+- 💸 **Агентът не винаги е по-добрият избор.** За ремонт на локатор местният модел е също толкова точен и безплатен. Агентът струва ~5 пъти повече от един отговор със Sonnet.
+- 🔒 **Агентът има по-силна ограда.** В Б инструментът Edit е позволен само върху файла на теста, още преди verifier-а.
+
+📄 Подробно сравнение: [`docs/COMPARISON.md`](docs/COMPARISON.md) · 📁 Всички пускания: [`docs/runs/`](docs/runs/)
+
+---
+
+## 🏗️ Структура
+
+```mermaid
+flowchart TB
+    subgraph shared["📦 shared/ · общо за двата стека"]
+        AC[🧪 acceptance.yaml<br/>AC1–AC9]
+        APP[🛒 демо приложение<br/>вход + кошница]
+        FX[💥 повреди<br/>fixtures]
+    end
+    A["🐍 impl-a-python/<br/>LangGraph · JSON patch"]
+    B["🟦 impl-b-ts/<br/>Agent SDK · Read + Edit"]
+    shared --> A
+    shared --> B
+    A --> CMP[📊 docs/COMPARISON.md]
+    B --> CMP
 ```
+
+---
+
+## 🚀 Пускане
+
+**🐍 А · Python**
+```bash
 python -m venv impl-a-python/.venv
 impl-a-python/.venv/Scripts/pip install playwright pytest langgraph pyyaml openai
 impl-a-python/.venv/Scripts/python -m playwright install chromium
-sh tools/install-hooks.sh                       # пази критериите
-impl-a-python/.venv/Scripts/python impl-a-python/run_acceptance.py            # Qwen на :8081
+sh tools/install-hooks.sh                                                     # пази критериите
+impl-a-python/.venv/Scripts/python impl-a-python/run_acceptance.py            # местен модел, OpenAI-съвместим адрес на :8081
 impl-a-python/.venv/Scripts/python impl-a-python/run_acceptance.py --model sonnet-cli
-
-cd impl-b-ts && npm install && npx playwright install chromium
-npm run unit                                    # 19 unit теста на verifier-а
-npm run acceptance -- --tag 1                   # Sonnet през Agent SDK (влиза с акаунта на Claude Code)
 ```
 
-Сравнението на А и Б е в `docs/COMPARISON.md`.
+**🟦 Б · TypeScript**
+```bash
+cd impl-b-ts && npm install && npx playwright install chromium
+npm run unit                         # 19 unit теста на verifier-а
+npm run acceptance -- --tag 1        # Sonnet през Claude Agent SDK
+```
 
-Резултатите се записват в `docs/runs/`.
-
-CI (`.github/workflows/ci.yml`) пуска без модел: пазача на критериите, 19-те unit теста на всеки verifier и AC1, AC4, AC6–AC9 и в двете имплементации.
-
-## Първи числа (24.11.2026)
-
-| Модел | AC съвпадат | Поправени повреди | Време за 8 случая | Токени вход/изход | Цена |
-|---|---|---|---|---|---|
-| Qwen 3.8 27B (местен) | 8/8 ×3 | 2/3 | ~66 s | 2 730 / 151 | 0 |
-| Claude Sonnet (през `claude -p`) | 8/8 | 2/3 | ~86 s | 112 519* / 767 | $0,067 по API цени |
-
-\* Повечето входни токени са системният контекст на `claude -p`, не HealCheck.
-
-Третата повреда (`remove-feature`) по замисъл не се лекува. При едно пробно пускане Sonnet я „поправи“, като натисна три пъти първия продукт, за да излезе същата сума. Затова verifier-ът вече проверява и стъпките (`steps_changed`).
+🤖 **CI** пуска без модел: пазача на критериите, 19-те unit теста на всеки verifier и AC1, AC4, AC6–AC9 и в двата стека.
